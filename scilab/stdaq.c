@@ -37,12 +37,12 @@ HANDLE open_serial_port(const char * device, uint32_t baud_rate)
         return INVALID_HANDLE_VALUE;
     }
     
-    // configure read and write operations to time out after 100 ms.
+    // configure read and write operations to time out after 1 ms //100 ms.
     COMMTIMEOUTS timeouts = {0};
     timeouts.ReadIntervalTimeout            = 0;
-    timeouts.ReadTotalTimeoutConstant       = 100;
+    timeouts.ReadTotalTimeoutConstant       = 1; // 100
     timeouts.ReadTotalTimeoutMultiplier     = 0;
-    timeouts.WriteTotalTimeoutConstant      = 100;
+    timeouts.WriteTotalTimeoutConstant      = 1; // 100
     timeouts.WriteTotalTimeoutMultiplier    = 0;
     
     success = SetCommTimeouts(port, &timeouts);
@@ -124,18 +124,20 @@ void stdaq_set()
     
 }
 
+static uint8_t buffer_read[256];
+
 //void stdaq_read(int * received)
 void stdaq_read(int * length, int * rx_buffer, int * received)
 {
     //uint8_t buffer[10];
     //int length = sizeof(buffer);
     //char * buffer = (char *) malloc(sizeof(char)*length);
-    uint8_t buffer[256];
+    //uint8_t buffer_read[256];
     //int length = sizeof(buffer);
     int ii;
-    *received = (int) read_port(daq_port, buffer, *length);
+    *received = (int) read_port(daq_port, buffer_read, *length);
     //memcpy(rx_buffer,buffer,*length);
-    for(ii=0;ii<*received;ii++) rx_buffer[ii] = (int) buffer[ii];
+    for(ii=0;ii<*received;ii++) rx_buffer[ii] = (int) buffer_read[ii];
 }
 
 

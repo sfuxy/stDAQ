@@ -137,6 +137,7 @@ function samples = stdaq_get_adc( channelsequence, numsamplesperchannel )
     inc = 1;
     adc = zeros(1,nrx);
     while (nrx>0) // till acqisition is over
+        //sleep(1);
         [rx,len] = stdaq_read(256);
         /*
         if (nrx/256 > 0) then 
@@ -154,6 +155,7 @@ function samples = stdaq_get_adc( channelsequence, numsamplesperchannel )
         end
     end
     
+    //samples = 0;
     
     // format samples
     samples = zeros(numsamplesperchannel,nch);
@@ -281,26 +283,63 @@ endfunction
 function stdaq_set_pwm()
 endfunction
 
-function stdaq_start_pwm()
+function stdaq_enable_pwm()
 endfunction
 
-function stdaq_stop_pwm()
+function stdaq_disable_pwm()
 endfunction
 
-function stdaq_set_timer()
+function [rx,len] = stdaq_read_i2c(i2c_address, reg_address, num_bytes)
+    // Read from the I2C in standard mode 100 kHz non-strech clock
+    // i2c_address: is a 7-bit address [0-127]
+    // reg_address: is the address of the register for a memory address size of 8 bits
+    // num_bytes: number of bytes, maximum read of 32 bytes
+    // rx: is an array with the returned values
+    // len: is the length of the array
+    
+    if (num_bytes > 32) then
+        mprintf("\n!> the argument num_bytes can be of maximum 32 bytes!");
+        return;
+    end
+    if (i2c_address > 127) then
+        mprintf("\n!> the I2C address MUST be a 7-bit address!");
+        return;
+    end
+    if (reg_address > 255) then
+        mprintf("\n!> the register address MUST be a 8-bit address!");
+        return;
+    end
+    if (stdaq_write([ascii('i'),ascii('r'),i2c_address,reg_address,num_bytes],5)<0) then
+        mprintf("\n !> I2C read command NOT sent sucessfully!");
+        return;
+    else
+        [rx,len] = stdaq_read(num_bytes);
+    end
+    
 endfunction
 
-function stdaq_start_timer()
-endfunction
-
-function stdaq_stop_timer()
-endfunction
-
-function stdaq_set_i2c()
-endfunction
-
-function stdaq_read_i2c()
-endfunction
-
-function stdaq_write_i2c()
+function stdaq_write_i2c(i2c_address, reg_address, data)
+    // Write to the I2C in standard mode 100 kHz non-strech clock
+    // i2c_address: is a 7-bit address [0-127]
+    // reg_address: is the address of the register for a memory address size of 8 bits
+    // data: array with data where each entry must be < 256 and maximum length of 32 entries
+    
+    // check data array
+    tx_size = length(data);
+    if (or(data>=256) && tx_size>32) then
+        mprintf("\n !> data MUST have numerical entries [0-255] and a max. length of 32!");
+        return;
+    end
+    if (i2c_address > 127) then
+        mprintf("\n!> the I2C address MUST be a 7-bit address!");
+        return;
+    end
+    if (reg_address > 255) then
+        mprintf("\n!> the register address MUST be a 8-bit address!");
+        return;
+    end
+    if (stdaq_write([ascii('i'),ascii('w'),i2c_address,reg_address,tx_size,data],(5+tx_size))<0) then
+        mprintf("\n !> I2C write command NOT sent sucessfully!");
+        return;
+    end
 endfunction

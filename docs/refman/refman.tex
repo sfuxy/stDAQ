@@ -13,7 +13,7 @@
 
 
 
-\title{stDAQ Reference Manual - r.1.0 (Antille)}
+\title{stDAQ Reference Manual - r.1.1 (Antille)}
 \date{July 4th, 2021}
 %\release{Antille - 1.0}
 \author{S.Furlan}
@@ -67,9 +67,14 @@ The only way to recognize progress is by measuring it. Whether it is a research 
 \label{fig:stDAQ_system}
 \end{figure}
 
-In this scenario the stDAQ project sparked from the personal quest of the author to provide to the general public a data acquisition system that is: i. affordable and scalable (less than 20\$ for each ST-NUCLEO board and freeware), ii. easy to setup and program (using well-known data processing environment like Scilab and Python), iii. performing and reliable (you need to trust the author and the many tests performed and reported in this manual). 
+In this scenario the stDAQ project sparked from the personal quest of the author to provide to the general public a data acquisition system that is: 
+\begin{itemize}
+\item[i.] affordable and scalable; just less than 20\$ for a ST-NUCLEO board and all the PC environments are freewares. Different situations may benefit of this low-cost DAQ alternative: while providing to the educators a means to teach students about electronic front-end, data collection, processing and control mechanisms, it also offers a versitile tool to the industry, where fast-prototyping and quick design cycles find an easy to setup data acquisition platform so to validate their innovation processes.
+\item[ii.] easy to setup and program (using well-known data processing environment like Scilab and Python); all it requires to setup is to plug a USB cable and open a data processing environment. The environment can be used to program the commands of the stDAQ either in REPL mode, which allows to step through the cause-effect mechanism of the command in a propedeutical method, or through the execution of a .sci or .py script, which may contain the source of a more complicated program. In order to keep the programming effort as minimal as possible without limiting the versatility, stDAQ is supported with a compact set of programming instructions, which are described in the next sections. 
+\item[iii.] performing and reliable, i.e. implement a control loop with feedback frequency up to 333-500 Hz (you need to trust the author and the many tests performed and reported in this manual).
+\end{itemize} 
 
-The stDAQ data acquisition system runs on a ST-NUCLEO board, connected to laptop PC via USB, see figure \ref{fig:stDAQ_system}. The ST-NUCLEO board runs the stDAQ firmware which setups up the board as a mixed-signals front-end, while the laptop PC is used as a programming interface to the stDAQ, either running through a Scilab or a Python environment. Setup and installation details are explained later. On the other side of the ST-NUCLEO, you can plug in any output of your dedicated signal conditioning circuit or sensor front-end.
+The stDAQ data acquisition system runs on a ST-NUCLEO board, connected to laptop PC via USB, see an high-level diagram in figure \ref{fig:stDAQ_system}. The stDAQ firmware setups up the ST-NUCLEO board as a mixed-signals DAQ, while the laptop PC is used as a programming interface to the stDAQ, either running through a Scilab or a Python environment. Setup and installation details are explained later. On the other side of the ST-NUCLEO, you can plug in any output of your dedicated signal conditioning circuit or sensor front-end. A particular attention must be payed in the connection of the latter to the ST-NUCLEO and the PC, so to avoid ground-loops; see the Power Supply \& USB Isolation section for more details about how to guarantee a low-noise acquisition. 
 
 
 %Scope of the project:
@@ -77,7 +82,7 @@ The stDAQ data acquisition system runs on a ST-NUCLEO board, connected to laptop
 %14AD 1DA 4DI 8DO 
 
 %not to reinvent the wheel, unless it can be built cheaper
-
+\newpage
 
 
 \subsection{Specifications}
@@ -102,8 +107,10 @@ In the next table are resumed the main features for each peripheral.
 \textbf{Peripherals}                                     & \textbf{Feature}                    & \textbf{Min.} & \textbf{Typ.} & \textbf{Max.} \\ \hline
 \cellcolor[HTML]{C0C0C0}                                 & resolution                          &               & 12 bits       &               \\
 \cellcolor[HTML]{C0C0C0}                                 & MUX channels                        &               &               & 14            \\
+\cellcolor[HTML]{C0C0C0}                                 & ADC update latency                  &               & 1 msec.       &               \\
+\cellcolor[HTML]{C0C0C0}                                 & ADC voltage input                   & 0V            &               & +3.3V         \\
 \cellcolor[HTML]{C0C0C0}                                 & channel sampling frequency          &               &               & 1 MHz         \\
-\multirow{-4}{*}{\cellcolor[HTML]{C0C0C0}\textbf{ADC}}   & inter-sequence sampling frequency   &               &               & 1 KHz        \\ \hline
+\multirow{-6}{*}{\cellcolor[HTML]{C0C0C0}\textbf{ADC}}   & inter-sequence sampling frequency   &               &               & 1 KHz         \\ \hline
 \cellcolor[HTML]{C0C0C0}                                 & resolution                          &               & 12 bits       &               \\
 \cellcolor[HTML]{C0C0C0}                                 & MUX channels                        &               &               & 1             \\
 \multirow{-3}{*}{\cellcolor[HTML]{C0C0C0}\textbf{DAC}}   & DAC update latency                  &               & 1 msec.       &               \\ \hline
@@ -111,18 +118,21 @@ In the next table are resumed the main features for each peripheral.
 \cellcolor[HTML]{C0C0C0}                                 & output pins                         &               &               & 8             \\
 \cellcolor[HTML]{C0C0C0}                                 & IO update latency                   &               & 2 msec.       &               \\
 \multirow{-4}{*}{\cellcolor[HTML]{C0C0C0}\textbf{GPIO}}  & IO voltage (TTL/CMOS)               & 0V            &               & +3.3V         \\ \hline
+\cellcolor[HTML]{C0C0C0}                                 & auto-reload counter size            &               & 16 bits       &               \\
 \cellcolor[HTML]{C0C0C0}                                 &                                     &               &               &               \\
-\multirow{-2}{*}{\cellcolor[HTML]{C0C0C0}\textbf{TIMER}} &                                     &               &               &               \\ \hline
-\cellcolor[HTML]{C0C0C0}                                 &                                     &               &               &               \\
-\multirow{-2}{*}{\cellcolor[HTML]{C0C0C0}\textbf{PWM}}   &                                     &               &               &               \\ \hline
-\cellcolor[HTML]{C0C0C0}                                 &                                     &               &               &               \\
-\multirow{-2}{*}{\cellcolor[HTML]{C0C0C0}\textbf{I2C}}   &                                     &               &               &              
+\multirow{-3}{*}{\cellcolor[HTML]{C0C0C0}\textbf{PWM}}   &                                     &               &               &               \\ \hline
+\cellcolor[HTML]{C0C0C0}                                 & I2C address size                    &               & 7 bits        &               \\
+\multirow{-2}{*}{\cellcolor[HTML]{C0C0C0}\textbf{I2C}}   & Standard mode clock                 &               & 100 kHz       &              
 \end{tabular}
 \end{table}
 
 \newpage 
 
 \subsection{Pinout}
+
+ST-NUCLEO boards come with mounted connectors CN7, CN8, CN9, CN10, called ST-Zio, which are female on top side and male on the bottom side. Those connectors are designed to also support the ARDUINO shield.
+See figure \ref{fig:pinout} for reference of the stDAQ peripherals available from the ST-Zio connectors. \\
+ST-NUCLEO boards do also have a vias for each pin of the microcontroller, this way you can solder a strip-header and customize the board for your application.
 
 \begin{figure}[ht!]
 %\centering
@@ -133,15 +143,15 @@ In the next table are resumed the main features for each peripheral.
 
 \newpage
 
-\section{Peripheral interfaces}
+\section{Programming interface}
 
-stDAQ provides the access to a selection of peripherals of the STM32F413ZH microcontroller through a programming interface. The scope of the stDAQ is to keep the programming interface as simple as possible, without sacrificing on performance, so to provide to the user a flexible programming environment to quickly setup its next data acquisition experiment. The supported programming environments are either the Scilab console or Python. In both cases, the peripheral programming interfaces are linked to the environments with a dedicated library, as explained in the Setup \& Installation section. \\
+stDAQ provides the access to a selection of peripherals of the STM32F413ZH microcontroller through a set of programming instructions. The scope of the stDAQ is to keep the programming interface as simple as possible, without sacrificing on performance, so to provide to the user a flexible programming environment to quickly setup its next data acquisition experiment. The supported programming environments are either the Scilab console or Python. In both cases, the peripheral programming interfaces are linked to the environments with a dedicated library, as explained in the Setup \& Installation section. \\
 The access to the stDAQ system is obtained by opening the USB communication on a virtual COM port, execute a sequence of setup commands, run the acquisition and close the communication. \\
 In the following sections, the programming functions related to each peripherals are highlighted in red, and usage examples are described along with their timing performance.
 
 \subsection{DEVICE}
 
-\subsubsection{\textcolor{red}{stdaq\_open()}}
+\subsubsection{\textcolor{red}{stdaq\_open}}
 
 The stdaq\_open() function opens the communication on the selected COM port. \\
 The prototype for the function call is:
@@ -158,7 +168,7 @@ A function call example in Scilab:
 --> res = stdaq_open("COM0");
 \end{verbatim}
 
-\subsubsection{\textcolor{red}{stdaq\_close()}}
+\subsubsection{\textcolor{red}{stdaq\_close}}
 
 The stdaq\_close() function closes the communication on the selected COM port. \\
 The prototype for the function call is:
@@ -167,7 +177,7 @@ stdaq_close()
 \end{verbatim}
 Currently this function does not require any entry and does not have returns. It just closes the active COM port.
 
-\subsubsection{\textcolor{red}{stdaq\_version()}}
+\subsubsection{\textcolor{red}{stdaq\_version}}
 
 The stdaq\_version() function gets the current version of the stDAQ firmware programmed on the ST-NUCLEO. \\
 The prototype for the function call is:
@@ -195,7 +205,7 @@ A function call example in Scilab:
 The stDAQ supports a single 12 bits DAC, with output on pin PA4. \\
 The programming of the DAC is obtained with the following functions:
 
-\subsubsection{\textcolor{red}{stdaq\_set\_dac()}}
+\subsubsection{\textcolor{red}{stdaq\_set\_dac}}
 
 The stdaq\_set\_dac() function sets the value in the DAC register used to set the analog voltage output on the pin PA4. To physically set the analog output voltage on the pin PA4 the DAC must be enabled (see stdaq\_dac\_enable()). \\
 The prototype for the function call is:
@@ -213,7 +223,7 @@ A function call example in Scilab:
 \end{verbatim}
 this will put on the output about 1.65V, once the DAC is enabled.
 
-\subsubsection{\textcolor{red}{stdaq\_enable\_dac()}}
+\subsubsection{\textcolor{red}{stdaq\_enable\_dac}}
 
 The stdaq\_enable\_dac() function enables the analog output voltage on the pin PA4. If DAC is enabled before setting its value in the register, the default output is 0V. \\
 The prototype for the function call is:
@@ -222,7 +232,7 @@ stdaq_enable_dac()
 \end{verbatim}
 Currently this function does not require any entry and does not have returns. It just enables the output analog voltage of the DAC.
 
-\subsubsection{\textcolor{red}{stdaq\_disable\_dac()}}
+\subsubsection{\textcolor{red}{stdaq\_disable\_dac}}
 
 The stdaq\_disable\_dac() function disables the analog output voltage on the pin PA4. \\
 The prototype for the function call is:
@@ -279,7 +289,7 @@ Channel 16 corresponds to the temperature sensor. Note that channel 4 and channe
 \end{table}
 The programming of the ADC is obtained with the following functions:
 
-\subsubsection{\textcolor{red}{stdaq\_set\_adc()}}
+\subsubsection{\textcolor{red}{stdaq\_set\_adc}}
 
 stdaq\_set\_adc() sets the ADC channels required for the acquisition. \\
 The prototype for the function call is: 
@@ -313,7 +323,7 @@ A function call example in Scilab:
 \end{verbatim}
 
 
-\subsubsection{\textcolor{red}{stdaq\_get\_adc()}}
+\subsubsection{\textcolor{red}{stdaq\_get\_adc}}
 
 The prototype for the function call is:
 \begin{verbatim}
@@ -345,8 +355,8 @@ In the bottom of the same figure, the channel sampling frequency is measured on 
 
 \subsubsection{Examples}
 
-As an example we will use the DAC to generate a sinusoid function, command the DAC output, record with the ADC channel 0 and display the result in Scilab.
-It is required to connect with a jumper wire the output of the DAC (pin PA4) with the input of the channel 0 of the ADC (pin PA0).
+As an example we will use the DAC to generate a sinusoid function, command the DAC output, record the voltage with the ADC channel 0 and display the result in Scilab, see figure \ref{fig:adc_example}.
+It is required to connect the output of the DAC (pin PA4) with the input of the channel 0 of the ADC (pin PA0) with a jumper wire.
 
 \begin{verbatim}
 --> chseq = [0]; // [ch0]
@@ -354,16 +364,25 @@ It is required to connect with a jumper wire the output of the DAC (pin PA4) wit
 --> stdaq_set_adc(chseq,clkdiv);
 --> stdaq_set_dac(0);
 --> stdaq_enable_dac();
---> tapsperperiod = 20; periods = 10; out = [];
---> for i=1:(tapsperperiod*periods)
-    ... value = 2048*(1 + sin(2*%pi*i/tapsperperiod));
+--> tapsperiod = 20; periods = 10; out = [];
+--> value = floor(2047.5*(1 + sin(2*%pi*(1:tapsperiod*periods)/tapsperiod)));
+--> for i=1:(tapsperiod*periods)
     ... stdaq_set_dac(value);
+    ... sleep(1);
     ... samples = stdaq_get_adc(chseq,1);
     ... out = [out, samples];
     end
 --> figure; plot(1:length(out),out);
 \end{verbatim}
+Here, the sleep(1) corresponds to a 1 msec. sleep, allowing the DAC to set before taking the measeure. Without it, we noticed that the measured value may not correpond to the real one set.
+Considering that each stdaq command in the for-loop takes about 1 msec., the total loop period amounts to about 3 msec, for a 333Hz loop rate. This structure may be usefull to implement for example a control loop where a PID controller, implemented in Scilab, can be used to set the next DAC value.
 
+\begin{figure}[ht!]
+%\centering
+\includegraphics[scale=0.8]{../img/adc_example.png}
+\caption{Top: DAC voltage output measured on pin PA4. Bottom: plot of the samples returned by stdaq\_get\_adc().}
+\label{fig:adc_example}
+\end{figure}
 
 \hrulefill
 
@@ -396,7 +415,7 @@ The digital outputs are set in push-pull mode.
 \end{tabular}
 \end{table}
 
-\subsubsection{\textcolor{red}{stdaq\_get\_gpio()}}
+\subsubsection{\textcolor{red}{stdaq\_get\_gpio}}
 This function reads the specified input port pin and returns its value to be either set (3.3V) or reset (0V).
 The prototype for the function call is: 
 \begin{verbatim}
@@ -413,7 +432,7 @@ A function call example in Scilab:
 --> value = stdaq_get_gpio(pin);
 \end{verbatim}
 
-\subsubsection{\textcolor{red}{stdaq\_set\_gpio()}}
+\subsubsection{\textcolor{red}{stdaq\_set\_gpio}}
 This function sets or clears the selected port bit.
 The prototype for the function call is: 
 \begin{verbatim}
@@ -432,7 +451,7 @@ A function call example in Scilab:
 --> stdaq_set_gpio(pin,value);
 \end{verbatim}
 
-\subsubsection{\textcolor{red}{stdaq\_toggle\_gpio()}}
+\subsubsection{\textcolor{red}{stdaq\_toggle\_gpio}}
 The prototype for the function call is: 
 \begin{verbatim}
 stdaq_toggle_gpio(pin)
@@ -473,7 +492,7 @@ For values of sleeps lower than 1 msec., the toggling is not more reliable and t
 
 The ST-NUCLEO board mounts three color LEDs, typically connected to the pins PB0 (green), PB7 (blue), PB14 (red).
 
-\subsubsection{\textcolor{red}{stdaq\_toggle\_led()}}
+\subsubsection{\textcolor{red}{stdaq\_toggle\_led}}
 This function toggles one of the three LEDs mounted on the ST-NUCLEO board.
 The prototype for the function call is: 
 \begin{verbatim}
@@ -495,11 +514,67 @@ This example toggles the red LED each 0.5 seconds for 10 times.
 
 \hrulefill
 
-\subsection{TIMER}
-
 \subsection{PWM}
 
+Three indipendent PWM output pins are available on PE5 (TIM9), PF7 (TIM11) and PF8 (TIM13).
+Those are obtained from general-purpose timers with auto-reload counter and prescaler of 16 bits.
+The timing of the PWM outputs can be syncronized.
+
+\subsubsection{\textcolor{red}{stdaq\_set\_pwm}}
+
+\subsubsection{\textcolor{red}{stdaq\_enable\_pwm}}
+
+\subsubsection{\textcolor{red}{stdaq\_disable\_pwm}}
+
+\subsubsection{\textcolor{red}{stdaq\_sync\_pwm}}
+
 \subsection{I2C}
+
+An I2C interface of 7-bit address standard mode no-strech 100 KHz clock is available on the pins PB6 (SCL - clock) and PB9 (SDA - data).
+When connected to a slave, pull-up resistors with typical values ranging from 2.2k$\Omega$ to 4.7k$\Omega$ are required on both the pins, since they are not present on the ST-NUCLEO.
+
+\subsubsection{\textcolor{red}{stdaq\_read\_i2c}}
+This function reads the register at the specified I2C address. \\
+The prototype for the function call is: 
+\begin{verbatim}
+[rx,len] = stdaq_read_i2c(i2c_address,reg_address,num_bytes)
+\end{verbatim}
+The entries to the functions are:
+\begin{itemize}
+\item [\textbf{[i2c\_address (IN)]}] is a 7-bit address [0-127];
+\item [\textbf{[reg\_address (IN)]}] is the address of the register for a memory address size of 8 bits;
+\item [\textbf{[num\_bytes (IN)]}] number of bytes to be read from the register, maximum read of 32 bytes;
+\item [\textbf{[rx (OUT)]}] an array with the values returned by the I2C read command;
+\item [\textbf{[len (OUT)]}] returns the length of the rx array;
+\end{itemize}
+A function call example in Scilab:
+\begin{verbatim}
+--> i2c_addr = 52;
+--> reg_addr = 10;
+--> num_bytes = 1;
+--> [rx,len] = stdaq_read_i2c(i2c_addr,reg_addr,num_bytes);
+\end{verbatim}
+
+\subsubsection{\textcolor{red}{stdaq\_write\_i2c}}
+This function writes the register at the specified I2C address. \\
+The prototype for the function call is: 
+\begin{verbatim}
+stdaq_write_i2c(i2c_address,reg_address,data)
+\end{verbatim}
+The entries to the functions are:
+\begin{itemize}
+\item [\textbf{[i2c\_address (IN)]}] is a 7-bit address [0-127];
+\item [\textbf{[reg\_address (IN)]}] is the address of the register for a memory address size of 8 bits;
+\item [\textbf{[data (IN)]}] array with data, where each entry must be 8 bits size and maximum length of 32 entries;
+\item [\textbf{[none (OUT)]}] 
+\end{itemize}
+A function call example in Scilab:
+\begin{verbatim}
+--> i2c_addr = 52;
+--> reg_addr = 10;
+--> data = [2,58,103];
+--> stdaq_write_i2c(i2c_addr,reg_addr,data);
+\end{verbatim}
 
 \newpage
 
@@ -509,7 +584,7 @@ To operate the ST-NUCLEO as a stDAQ and communicate with your Scilab environment
 \begin{enumerate}
 \item Download and install the latest Scilab freeware from the \href{https://www.scilab.org/}{website}.
 \item Download and install the ST-Link Utility from the \href{https://www.st.com/en/development-tools/stsw-link004.html}{ST website}.
-\item Plug in the USB PWR of the ST-NUCLEO board to your laptop and open the ST-Link Utility. Go in Target menu and Connect. If sucessfull, the device name is displayed and the memory of the microcontroller opened up in a table. 
+\item Plug in the USB PWR (also known as STLink USB) of the ST-NUCLEO board to your laptop and open the ST-Link Utility. Go in Target menu and Connect. If sucessfull, the device name is displayed and the memory of the microcontroller opened up in a table. 
 \item In the ST-Link Utility, open Program... in the Target menu, upload the stdaq\_antille\_r1s0.bin binary file available in the /nucleo folder of the project, and program the microcontroller. 
 \item Connect the User USB of the ST-NUCLEO board to your laptop and locate the corresponding COM port.
 \item Open Scilab. In the file browser, navigate till the /scilab folder in the stDAQ project and execute runme.sci with the command
@@ -530,7 +605,21 @@ A new reprogramming with the ST-Link Utility is required only if a new firmware 
 
 Similarly to Scilab, the Python stDAQ library in the /python folder needs to be used to communicate with the ST-NUCLEO from your .py programming environment.
 
+\newpage
 
+\section{Power Supply \& USB Isolation}
+
+The ST-NUCLEO can be powered in four different ways (see section 6.4 in UM1974 from STMicroeletronics also available in the docs/ folder):
+\begin{itemize}
+\item plugging in the USB PWR (STLink USB) which supplies a nominal 5 Volts; 
+\item supplying an external 5 Volts into the E5V pin;
+\item supplying an external 3.3 Volts into the 3.3 pin;
+\item supplying an external 7 to 12 Volts source into the VIN pin; this voltage is stepped down to a nominal 5 Volts through the on-board linear regolator;
+\end{itemize}
+
+One of the problem that arises when supplying power to the ST-NUCLEO from an external source and contemporary connecting the User USB to the Laptop or PC for the data transmission is the presence of ground loop. This latter may cause an unstable reference ground, which results in uncorrelated noise on the ADC measurements. \\
+Just adding an USB isolator on the User USB may be sufficient to break the ground loop and its effects on the measruements.
+Examples of USB isolators available on the market are the HiLetgo USB isolator, the EZSync USB isolator and the SMAKN USB isolator. Those isolators support USB-FS communication and can be also used to power a connected device.
 
 %\subsection{STM32F4xx}
 %We tested the lwHAL on the STM NUCLEO-F429ZI development board. The test consists
