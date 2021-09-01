@@ -3,8 +3,12 @@
 
 exec loader.sce;
 
+global tim_params;
+tim_params = [-1,-1;-1,-1;-1,-1];
+
 function out = stdaq_open( port ) 
 
+    global tim_params;
     out = call("stdaq_open",...
         port,1,"c",...
         "out",...
@@ -14,6 +18,18 @@ function out = stdaq_open( port )
          mprintf("\n !> %s port not found!\n",port);
     else 
         mprintf("\n !> %s port open!\n",port);
+        tim_params = [-1,-1;-1,-1;-1,-1];
+        // warm-up ADC
+        //stdaq_write(ascii(['t','3']),2) // set sampling freq. = 125 KHz
+        //stdaq_write([ascii('s'),3,ascii(['d','a','b','c','d'])],7); // set sampling freq. 125kHz & ch0-ch3
+        stdaq_write([ascii('s'),3,4,0,1,2,3],7); 
+       // sleep(10);
+        //stdaq_write(ascii(['s','d','b','b','c','d']),6) 
+        sleep(10);
+        stdaq_write([ascii('a'),0,10],3); // start acquisition with 8224 repeatitions
+        sleep(10);
+        [rx,len] = stdaq_read(256);
+        
     end
     
 endfunction
@@ -89,25 +105,27 @@ function stdaq_set_adc( channelsequence, clockdivision )
         return;
     end
     if (length(find((channelsequence==4)||(channelsequence==8)))>0) then
-        mprintf("\n!> Channel 8 in the sequence is NOT supported on NUCLEO-F413ZH!");
+        mprintf("\n!> Channel 4 and 8 in the sequence are NOT supported on NUCLEO-F413ZH!");
         return;
     end
     if (clockdivision<0 || clockdivision>9) then
         mprintf("\n!> Clock division must be between [0-9]!");
         return;
     end
+    /*
     if (stdaq_write([ascii('t'),clockdivision+48],2)<0) then
     //if (stdaq_write(msprintf("t%c",char(clockdivision+48)),2)<0) then
         mprintf("\n!> Write to clockdivision is NOT successfull!");
         return;
-    end
+    end */
 
     //seq = msprintf("s%c",char(nch+96));
     //for i=1:nch
     //    seq = msprintf("%s%c",seq,char(channelsequence(i)+97));
     //end
-    seq = [ascii('s'),nch+96,channelsequence+97];
-    if (stdaq_write(seq,2+nch)<0) then
+    //seq = [ascii('s'),clockdivision+48,nch+96,channelsequence+97];
+    seq = [ascii('s'),clockdivision,nch,channelsequence];
+    if (stdaq_write(seq,3+nch)<0) then
         mprintf("\n!> Write to channelsequence is NOT successfull!");
         return;
     end
@@ -123,7 +141,8 @@ function samples = stdaq_get_adc( channelsequence, numsamplesperchannel )
     
     nch = length(channelsequence);
     nrx = 2*nch*numsamplesperchannel;
-    adc = zeros(1,nrx); 
+    //adc = zeros(1,nrx); 
+    samples = [];
     
     nhi = floor(numsamplesperchannel/256);
     nlo = pmodulo(numsamplesperchannel,256);
@@ -133,7 +152,7 @@ function samples = stdaq_get_adc( channelsequence, numsamplesperchannel )
         mprintf("\n!> Acquisition NOT started!");
         return;
     end 
-    
+
     inc = 1;
     adc = zeros(1,nrx);
     while (nrx>0) // till acqisition is over
@@ -151,7 +170,7 @@ function samples = stdaq_get_adc( channelsequence, numsamplesperchannel )
             adc(1,inc:(inc+len-1)) = rx(1:len);
             inc = inc + len;
             nrx = nrx - len;
-            //mprintf("%d",nrx);
+            //mprintf("%d ",nrx);
         end
     end
     
@@ -161,7 +180,9 @@ function samples = stdaq_get_adc( channelsequence, numsamplesperchannel )
     samples = zeros(numsamplesperchannel,nch);
     for i=1:numsamplesperchannel
         for j=1:nch
-           samples(i,j) = adc(1,(i-1)*nch*2+(j-1)*2+1)+256*adc(1,(i-1)*nch*2+j*2); 
+           //a = (i-1)*nch*2+(j-1)*2+1;
+           b = (i-1)*nch*2+j*2;
+           samples(i,j) = adc(1,b-1)+256*adc(1,b); 
         end
     end
     
@@ -171,10 +192,12 @@ function samples = stdaq_get_adc( channelsequence, numsamplesperchannel )
     // Temp_Celsius = (Vsense-V25) / avg_slope + 25;
     // V25 = 0.76 V
     // avg_slope = 2.5 mV/C
+    
     tempidx = find(channelsequence==16);
     if (~isempty(tempidx)) then 
         samples(:,tempidx) = (samples(:,tempidx)-0.76)/0.0025 + 25;
     end
+    
     
     
 endfunction
@@ -226,6 +249,7 @@ function value = stdaq_get_gpio(pin)
         value = rx(1);
     else
         mprintf("\n!> GPIO input NOT gotten!");
+        value = -1;
     end 
 endfunction
 
@@ -235,7 +259,7 @@ function stdaq_set_gpio(pin, value)
         mprintf("\n!> input value must be [0,1]!");
         return;
     end
-    if (pin<0 && pin>7) then
+    if (pin<0 || pin>7) then
         mprintf("\n!> input pin must be PD[0-7]!");
         return;
     end
@@ -247,7 +271,7 @@ endfunction
 
 function stdaq_toggle_gpio(pin)
     // toggle the status of a gpio output
-    if (pin<0 && pin>7) then
+    if (pin<0 || pin>7) then
         mprintf("\n!> input pin must be [0-7]!");
         return;
     end
@@ -280,13 +304,138 @@ function stdaq_toggle_led(ledcolor)
     end
 endfunction
 
-function stdaq_set_pwm()
+function stdaq_set_pwm(pwm,duty,rate,params)
+    // set the PWM timer 
+    // pwm: is the PWM number [1-3]
+    // rate: is the frequency of the PWM expressed in Hertz
+    // duty: is the duty cycle expressed in percentage [0-100]
+    // params: is a two entries array [tim_presc,tim_period] used to bypass the automotic period guess, with both entries in [1-65336]
+    // 
+    // Usage examples:
+    //   stdaq_set_pwm(1,50,100) => to set tim9 to 100Hz rate and 50% duty
+    //   stdaq_set_pwm(2,duty=10) => to change tim11 duty cycle to 10%
+    //   stdaq_set_pwm(3,duty=20.5,params=[6400,200]) => set tim13 to 75Hz rate and duty cycle to 20.5%
+    
+    apb_tim_clk = 96000000;
+    
+    global tim_params;
+    
+    if ~isdef("pwm","l") then
+        mprintf("\n!> PWM timer not set!");
+        return;
+    end
+    
+    if (pwm<1 || pwm>3) then
+        mprintf("\n!> PWM timer must be a value in [1-3]!");
+    end
+    
+    if isdef("duty","l") then
+        if (duty<0 || duty > 100) then
+            mprintf("\n!> Duty cycle must be a value in [0-100]!");
+            return;
+        end
+        if isdef("rate","l") then 
+            
+            //tim_presc = (apb_tim_clk/clk)-1;
+            //tim_period =
+            //tmp = apb_tim_clk/rate;
+            
+            // Automatic period guess
+            c = [0;-1]; // objective terms: find the logmax of x2 which means to maximize the PWM resolution
+            lb = [1/65336;1];
+            ub = [1;65336];
+            Aeq = [apb_tim_clk,-rate];
+            beq = [0];
+            [xopt,fopt,exitflag,iter,yopt] = karmarkar(Aeq,beq,c,[],[],[],[],[],[],[],lb,ub);
+    
+            tim_presc = round(1/xopt(1)) - 1;
+            tim_period = round(xopt(2)) - 1;
+            tim_pulse = round(duty/100*(tim_period+1));
+            
+            mprintf("\n PWM automatic parameters generation:");
+            mprintf("\n prescaler = %d",tim_presc);
+            mprintf("\n period = %d",tim_period);
+            mprintf("\n pulse = %d",tim_pulse);
+            
+            // update global tim_params variable
+            tim_params(pwm,:) = [tim_presc,tim_period];
+            
+            val = [pwm,floor(tim_presc/256),pmodulo(tim_presc,256),floor(tim_period/256),pmodulo(tim_period,256),floor(tim_pulse/256),pmodulo(tim_pulse,256)];
+    
+            if (stdaq_write([ascii('x'),ascii('s'),val],9)<0) then
+                mprintf("\n!> PWM values NOT set!");
+                return;
+            end
+            
+        elseif isdef("params","l") then
+            
+            if (or(params>65336) || or(params<1)) then
+                mprintf("\n!> params must have values in [1-65336]!");
+                return;
+            end 
+            
+            tim_presc = params(1) - 1;
+            tim_period = params(2) - 1;
+            tim_pulse = round(duty/100*(tim_period+1));
+            
+            // update global tim_params variable
+            tim_params(pwm,:) = [tim_presc,tim_period];
+            
+            val = [pwm,floor(tim_presc/256),pmodulo(tim_presc,256),floor(tim_period/256),pmodulo(tim_period,256),floor(tim_pulse/256),pmodulo(tim_pulse,256)];
+    
+            if (stdaq_write([ascii('x'),ascii('s'),val],9)<0) then
+                mprintf("\n!> PWM values NOT set!");
+                return;
+            end
+            
+        else 
+            // just update the duty cycle ONLY if the period was previously set 
+            if (or(tim_params(pwm,:)>0)) then
+            
+                tim_presc = tim_params(pwm,1) - 1;
+                tim_period = tim_params(pwm,2) - 1;
+                tim_pulse = round(duty/100*(tim_period+1));
+
+                val = [pwm,0,0,0,0,floor(tim_pulse/256),pmodulo(tim_pulse,256)];
+    
+                if (stdaq_write([ascii('x'),ascii('x'),val],9)<0) then
+                    mprintf("\n!> PWM duty cycle NOT set!");
+                    return;
+                end
+            
+            else
+                mprintf("\n!> PWM period was NOT previosly set!");
+                return;
+            end 
+        end
+    else 
+        mprintf("\n!> Duty was NOT defined!");
+    end
+    
 endfunction
 
-function stdaq_enable_pwm()
+function stdaq_enable_pwm(pwm)
+    // Enable the PWM tim, where tim can be either [1,2,3]. 
+    if (pwm<1 || pwm>3) then
+        mprintf("\n!> PWM timer must be a value in [1-3]!");
+        return;
+    end
+    if (stdaq_write([ascii('x'),ascii('e'),pwm],3)<0) then
+        mprintf("\n!> PWM%d NOT enabled!",pwm);
+        return;
+    end
 endfunction
 
-function stdaq_disable_pwm()
+function stdaq_disable_pwm(pwm)
+    // Enable the PWM tim, where tim can be either [1,2,3]. 
+    if (pwm<1 || pwm>3) then
+        mprintf("\n!> PWM timer must be a value in [1-3]!");
+        return;
+    end
+    if (stdaq_write([ascii('x'),ascii('d'),pwm],3)<0) then
+        mprintf("\n!> PWM%d NOT disabled!",pwm);
+        return;
+    end
 endfunction
 
 function [rx,len] = stdaq_read_i2c(i2c_address, reg_address, num_bytes)
@@ -295,7 +444,10 @@ function [rx,len] = stdaq_read_i2c(i2c_address, reg_address, num_bytes)
     // reg_address: is the address of the register for a memory address size of 8 bits
     // num_bytes: number of bytes, maximum read of 32 bytes
     // rx: is an array with the returned values
-    // len: is the length of the array
+    // len: is the length of the array (if -1, means no output available)
+    
+    rx = [];
+    len = -1;
     
     if (num_bytes > 32) then
         mprintf("\n!> the argument num_bytes can be of maximum 32 bytes!");
@@ -326,7 +478,7 @@ function stdaq_write_i2c(i2c_address, reg_address, data)
     
     // check data array
     tx_size = length(data);
-    if (or(data>=256) && tx_size>32) then
+    if ((data>=256) || tx_size>32) then
         mprintf("\n !> data MUST have numerical entries [0-255] and a max. length of 32!");
         return;
     end

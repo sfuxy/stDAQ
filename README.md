@@ -35,7 +35,8 @@ Install <a href="https://www.scilab.org/"> Scilab </a>, launch it and run the sc
     - Completed pinout assignment and reference in manual
     - Reduced latency for stdaq_get_adc() down to 1 msec.
     - Added example in ADC section
-    
+	- Added support to PWM outputs
+	
 ------------------------------------------------------------------------------------
 MIT license.
 stDAQ (c) 2021, Silvano Furlan.

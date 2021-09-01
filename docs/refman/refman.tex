@@ -118,8 +118,8 @@ In the next table are resumed the main features for each peripheral.
 \cellcolor[HTML]{C0C0C0}                                 & output pins                         &               &               & 8             \\
 \cellcolor[HTML]{C0C0C0}                                 & IO update latency                   &               & 2 msec.       &               \\
 \multirow{-4}{*}{\cellcolor[HTML]{C0C0C0}\textbf{GPIO}}  & IO voltage (TTL/CMOS)               & 0V            &               & +3.3V         \\ \hline
-\cellcolor[HTML]{C0C0C0}                                 & auto-reload counter size            &               & 16 bits       &               \\
-\cellcolor[HTML]{C0C0C0}                                 &                                     &               &               &               \\
+\cellcolor[HTML]{C0C0C0}                                 & PWM resolution                      &               &               & 16 bits       \\
+\cellcolor[HTML]{C0C0C0}                                 & PWM output frequency                & 1 Hz          &               & 350 kHz       \\
 \multirow{-3}{*}{\cellcolor[HTML]{C0C0C0}\textbf{PWM}}   &                                     &               &               &               \\ \hline
 \cellcolor[HTML]{C0C0C0}                                 & I2C address size                    &               & 7 bits        &               \\
 \multirow{-2}{*}{\cellcolor[HTML]{C0C0C0}\textbf{I2C}}   & Standard mode clock                 &               & 100 kHz       &              
@@ -151,6 +151,8 @@ In the following sections, the programming functions related to each peripherals
 
 \subsection{DEVICE}
 
+The following functions are used to open, close the communication with the stDAQ and return the current firmware version running on the ST-NUCLEO board.
+
 \subsubsection{\textcolor{red}{stdaq\_open}}
 
 The stdaq\_open() function opens the communication on the selected COM port. \\
@@ -167,6 +169,13 @@ A function call example in Scilab:
 \begin{verbatim}
 --> res = stdaq_open("COM0");
 \end{verbatim}
+%
+In Python, the device communication is opened with the instantion of a class \\ $STDAQ(port,[verbose=True])$. A function call example in Python:
+\begin{verbatim}
+>>> import stdaq 
+>>> daq = stdaq.STDAQ('COM0') # open the communication
+\end{verbatim}
+If the status of the opening is not successfull, then the new class is not instantiated and an error message appears.
 
 \subsubsection{\textcolor{red}{stdaq\_close}}
 
@@ -176,6 +185,11 @@ The prototype for the function call is:
 stdaq_close()
 \end{verbatim}
 Currently this function does not require any entry and does not have returns. It just closes the active COM port.
+
+In Python, the device communication is closed by the deletion of the class instantiation. A function call example to close the communication previously opened in Python:
+\begin{verbatim}
+>>> del daq         # close the communication
+\end{verbatim}
 
 \subsubsection{\textcolor{red}{stdaq\_version}}
 
@@ -189,16 +203,42 @@ The entries to the functions are:
 \item [\textbf{[none (IN)]}] 
 \item [\textbf{[res (OUT)]}] returns a list with both the package name and the release number of the stDAQ firmware.
 \end{itemize}
-A function call example in Scilab:
+Examples of function calls:
+\begin{table}[h!]
+\begin{tabular}{|l|l|}
+\hline
+\cellcolor[HTML]{C0C0C0} \textbf{Scilab} & 
+\begin{minipage}{4.5in}
 \begin{verbatim}
---> if (stdaq_open("COM0")>=0) then 
-    ... [pkg,rel,sub] = stdaq_version();
-    ... mprintf("\n stDAQ version: (%s) r.%d.%d",pkg,rel,sub);
-    ... stdaq_close();
-    end
-\end{verbatim}
 
-\hrulefill
+if (stdaq_open("COM0")>=0) then 
+    [pkg,rel,sub] = stdaq_version();
+    mprintf("\n stDAQ version: (%s) r.%d.%d",pkg,rel,sub);
+    stdaq_close();
+end
+    
+\end{verbatim}
+\end{minipage}
+\\ \hline
+\cellcolor[HTML]{C0C0C0} \textbf{Python} & 
+\begin{minipage}{4.5in}
+\begin{verbatim}
+
+import stdaq
+
+daq = stdaq.STDAQ('COM0') # open the communication
+[pkg,rel,sub] = daq.version()
+print("\n stDAQ version: ({}) r.{}.{}\n".format(pkg,rel,sub))
+del daq                 # close the communication
+    
+\end{verbatim}
+\end{minipage}
+\\ \hline
+\end{tabular}
+\end{table}
+
+%\hrulefill
+\newpage
 
 \subsection{DAC}
 
@@ -243,20 +283,53 @@ Currently this function does not require any entry and does not have returns.
 
 \subsubsection{Examples}
 
-As an example we will generate a periodic function in Scilab, command the DAC through increments and analyze its performance.
-
-First we generate a triangular wave spanning from 0 to 3.3V with an incremental step of 12, equivalent to a step of about 10 mV.
+As an example we will generate a periodic function, command the DAC through increments and analyze its performance.
+First we generate a triangular wave spanning from 0 to 3.3V with an incremental step of 12, equivalent to a step of about 10 mV. A delay of 1 msec. is added after the newer dac value has been set. This is recommended since the USB communication has a delay of about 1 msec. Longer sleeps can be performed, but shorter ones perform an unpredicatable update.
+%
+\begin{table}[ht!]
+\begin{tabular}{|l|l|}
+\hline
+\cellcolor[HTML]{C0C0C0} \textbf{Scilab} & 
+\begin{minipage}{4.5in}
 \begin{verbatim}
---> stdaq_set_dac(4095);
---> stdaq_enable_dac();
---> step = 12; taps = 341; periods = 10;
---> for i=1:(2*taps*periods)
-    ... value = abs(step*(pmodulo(i,2*taps)-taps));
-    ... stdaq_set_dac(value);
-    end
+
+stdaq_open("COM0");
+stdaq_set_dac(4095);
+stdaq_enable_dac();
+step = 12; taps = 341; periods = 10;
+for i=1:(2*taps*periods)
+    value = abs(step*(pmodulo(i,2*taps)-taps));
+    stdaq_set_dac(value);
+    sleep(1);
+end
+stdaq_close();
+    
 \end{verbatim}
-This is recommended since the USB communication has a delay of about 1 msec. 
-Longer sleeps can be performed, but shorter ones perform an unpredicatable update.
+\end{minipage}
+\\ \hline
+\cellcolor[HTML]{C0C0C0} \textbf{Python} & 
+\begin{minipage}{4.5in}
+\begin{verbatim}
+
+import stdaq
+from time import sleep
+
+daq = stdaq.STDAQ('COM0') # open the communication
+daq.set_dac(4095)
+daq.enable_dac()
+step = 12, taps = 341, periods = 10
+for i in range(2*taps*periods):
+    value = abs(step*((i%(2*taps))-taps))
+    daq.set_dac(value)
+    sleep(0.001)
+
+del daq                 # close the communication
+    
+\end{verbatim}
+\end{minipage}
+\\ \hline
+\end{tabular}
+\end{table}
 
 \begin{figure}[ht!]
 %\centering
@@ -265,7 +338,9 @@ Longer sleeps can be performed, but shorter ones perform an unpredicatable updat
 \label{fig:triangular_wave}
 \end{figure}
 
-\hrulefill
+%\clearpage
+%\hrulefill
+\newpage
 
 \subsection{ADC}
 
@@ -348,6 +423,14 @@ A function call example in Scilab:
 --> stdaq_set_adc(chseq,clkdiv);
 --> samples = stdaq_get_adc(chseq,30);
 \end{verbatim}
+%
+Similarly in Python, the ADC channels are set and read with the functions:
+\begin{verbatim}
+>>> chseq = [0,1,2,2,5,16]
+>>> clkdiv = 2
+>>> daq.set_adc(chseq,clkdiv)
+>>> samples = daq.get_adc(chseq,30)
+\end{verbatim}
 
 As seen in figure \ref{fig:adc_timing_a} top, the inter-sequence sampling frequency can reach values up to 1 KHz, where the limit is mainly due by the USB communication to request for new data.
 In the bottom of the same figure, the channel sampling frequency is measured on PE9 as the 250 KHz set in the clockdivision entry. Note that pin PE9 is the trigger to the acquisition of a new channel in the selected sequence list, where the acquisition trigger is set as rising edge.
@@ -358,22 +441,73 @@ In the bottom of the same figure, the channel sampling frequency is measured on 
 As an example we will use the DAC to generate a sinusoid function, command the DAC output, record the voltage with the ADC channel 0 and display the result in Scilab, see figure \ref{fig:adc_example}.
 It is required to connect the output of the DAC (pin PA4) with the input of the channel 0 of the ADC (pin PA0) with a jumper wire.
 
+
+%\begin{table}[ht!]
+\begin{table}[!]
+\begin{tabular}{|l|l|}
+\hline
+\cellcolor[HTML]{C0C0C0} \textbf{Scilab} & 
+\begin{minipage}{4.5in}
 \begin{verbatim}
---> chseq = [0]; // [ch0]
---> clkdiv = 0; // 1 MHz
---> stdaq_set_adc(chseq,clkdiv);
---> stdaq_set_dac(0);
---> stdaq_enable_dac();
---> tapsperiod = 20; periods = 10; out = [];
---> value = floor(2047.5*(1 + sin(2*%pi*(1:tapsperiod*periods)/tapsperiod)));
---> for i=1:(tapsperiod*periods)
-    ... stdaq_set_dac(value);
-    ... sleep(1);
-    ... samples = stdaq_get_adc(chseq,1);
-    ... out = [out, samples];
-    end
---> figure; plot(1:length(out),out);
+
+stdaq_open("COM0");
+chseq = [0];            // [ch0]
+clkdiv = 0;             // 1 MHz
+stdaq_set_adc(chseq,clkdiv);
+stdaq_set_dac(0);
+stdaq_enable_dac();
+tpp = 20;               // taps per period 
+periods = 10;           // number of periods
+n = tpp*periods; out = [];
+value = floor(2047.5*(1 + sin(2*%pi*(1:n)/tpp)));
+for i=1:n
+    stdaq_set_dac(value(i));
+    sleep(1);
+    samples = stdaq_get_adc(chseq,1);
+    out = [out, samples];
+end
+figure; plot(1:length(out),out);
+stdaq_close();
+
 \end{verbatim}
+\end{minipage}
+\\ \hline
+\cellcolor[HTML]{C0C0C0} \textbf{Python} & 
+\begin{minipage}{4.5in}
+\begin{verbatim}
+
+import stdaq
+from time import sleep
+import math as m
+import matplotlib.pyplot as plt
+
+daq = stdaq.STDAQ('COM0') # open the communication
+chseq = [0]
+clkdiv = 0
+daq.set_adc(chseq,clkdiv)
+daq.set_dac(0)
+daq.enable_dac()
+tpp = 20                  # taps per period
+periods = 10              # number of periods
+out = []
+n = tpp*periods
+value = [int(2047.5*(1+m.sin(2*m.pi*(i+1)/tpp))) for i in range(n)]
+for i in range(n):
+    daq.set_dac(value(i))
+    sleep(0.001)
+    samples = daq.get_adc(chseq,1)
+    out = [out, samples]
+ 
+plt.plot(range(1,len(out)),out)
+plt.show()
+del daq                 # close the communication
+    
+\end{verbatim}
+\end{minipage}
+\\ \hline
+\end{tabular}
+\end{table}
+
 Here, the sleep(1) corresponds to a 1 msec. sleep, allowing the DAC to set before taking the measeure. Without it, we noticed that the measured value may not correpond to the real one set.
 Considering that each stdaq command in the for-loop takes about 1 msec., the total loop period amounts to about 3 msec, for a 333Hz loop rate. This structure may be usefull to implement for example a control loop where a PID controller, implemented in Scilab, can be used to set the next DAC value.
 
@@ -385,6 +519,7 @@ Considering that each stdaq command in the for-loop takes about 1 msec., the tot
 \end{figure}
 
 \hrulefill
+\newpage
 
 \subsection{GPIO}
 
@@ -465,14 +600,46 @@ The entries to the functions are:
 \subsubsection{Examples}
 
 As an example we will toggle the pin PD0 at each iteration of a loop cycle, so to evaluate the frequency response and the average latency of the digital output.
-
+%
+\begin{table}[ht!]
+\begin{tabular}{|l|l|}
+\hline
+\cellcolor[HTML]{C0C0C0} \textbf{Scilab} & 
+\begin{minipage}{4.5in}
 \begin{verbatim}
---> tags = 100;
---> for i=1:tags
-    ... stdaq_toggle_gpio(0);
-    ... sleep(1);
-    end
+
+stdaq_open('COM0');
+tags = 100;
+for i=1:tags
+    stdaq_toggle_gpio(0);
+    sleep(1);
+end
+stdaq_close();
+
 \end{verbatim}
+\end{minipage}
+\\ \hline
+\cellcolor[HTML]{C0C0C0} \textbf{Python} & 
+\begin{minipage}{4.5in}
+\begin{verbatim}
+
+import stdaq
+from time import sleep
+
+daq = stdaq.STDAQ('COM0') # open the communication
+tags = 100
+for i in range(tags):
+    daq.toggle_gpio(0)
+    sleep(0.001)
+
+del daq                 # close the communication
+    
+\end{verbatim}
+\end{minipage}
+\\ \hline
+\end{tabular}
+\end{table}
+%
 The $sleep(1)$ routine is added in the loop to delay the PC loop of 1 msec. 
 The toggling of the GPIO is in fact limited by the USB refresh rate, which occurs at about 1 msec..
 The max. total toggling rate is measured to be 250 Hz, see figure \ref{fig:gpio_example}. It is observed that some slips of $\pm 1$ msec happens with a rate of 2\% of the toggling count. 
@@ -503,30 +670,150 @@ The entries to the functions are:
 \item [\textbf{[color (IN)]}] character corresponding to the color of the LED to be toggled, which can be either 'r' (red), 'g' (green), or 'b' (blue).
 \item [\textbf{[none (OUT)]}]
 \end{itemize}
-A function call example in Scilab:
+An example of a function call in Scilab:
 \begin{verbatim}
 --> for i=1:10
     ... stdaq_toggle_led('r');
     ... sleep(500);
     end
 \end{verbatim}
-This example toggles the red LED each 0.5 seconds for 10 times.
+This example toggles the red LED each 0.5 seconds for 10 times. \\
+The same example of a call in Python:
+\begin{verbatim}
+>>> import stdaq
+>>> daq = stdaq.STDAQ('COM0')
+>>> for i in range(10):
+        daq.toggle_led('r');
+        sleep(0.5);
+\end{verbatim}
 
 \hrulefill
 
 \subsection{PWM}
 
 Three indipendent PWM output pins are available on PE5 (TIM9), PF7 (TIM11) and PF8 (TIM13).
-Those are obtained from general-purpose timers with auto-reload counter and prescaler of 16 bits.
+Those are obtained from general-purpose timers with auto-reload counter and prescaler of 16 bits. The PWM outputs have positive polarity and are edge aligned.
 The timing of the PWM outputs can be syncronized.
 
 \subsubsection{\textcolor{red}{stdaq\_set\_pwm}}
 
+The stdaq\_set\_pwm() function sets the PWM parameters. \\
+The prototype for the function call is:
+\begin{verbatim}
+stdaq_enable_pwm(pwm,duty,rate,params)
+\end{verbatim}
+The entries to the functions are:
+\begin{itemize}
+\item [\textbf{[pwm (IN)]}] is the number [1-3] of the PWM required to be turned on. 
+\item [\textbf{[duty (IN)]}] is the duty-cycle expressed in percentage in the range [0-100]. 
+\item [\textbf{[rate (IN)]}] is the frequency of the PWM expressed in Hertz. 
+\item [\textbf{[params (IN)]}] is a two entries array [tim\_presc,tim\_period] used to bypass the automotic period guess, with both entries in [1-65336].
+\item [\textbf{[none (OUT)]}]
+\end{itemize}
+Here we make some examples of function call in Scilab:
+\begin{verbatim}
+--> stdaq_set_pwm(1,50,160);
+\end{verbatim}
+This command sets the PWM 1 to a 50\% duty-cycle and a frequency of 160Hz. In particular, this call makes use of an automatic period guess that optimize the prescaler and the period parameters to the timer so to maximize the PWM resolution as possible.
+
+\begin{verbatim}
+--> stdaq_set_pwm(3,20,params=[6400,200]);
+\end{verbatim}
+This command sets the PWM 3 to a 20\% duty-cycle and a frequency of 75Hz. This call bypasses the automatic period guess by feeding directly the parameters to the prescaler and period of the timer. The output frequency of the PWM is calculated as $96 MHz/(6400*200) = 75 Hz$.
+
+\begin{verbatim}
+--> stdaq_set_pwm(1,70);
+\end{verbatim}
+This command is used to update the duty-cycle of the PWM 1 to 70\%.
+
 \subsubsection{\textcolor{red}{stdaq\_enable\_pwm}}
+
+The stdaq\_enable\_pwm() function enables the PWM output. \\
+The prototype for the function call is:
+\begin{verbatim}
+stdaq_enable_pwm(pwm)
+\end{verbatim}
+The entries to the functions are:
+\begin{itemize}
+\item [\textbf{[pwm (IN)]}] is the number [1-3] of the PWM required to be turned on. 
+\item [\textbf{[none (OUT)]}]
+\end{itemize}
+A function call example in Scilab:
+\begin{verbatim}
+--> stdaq_enable_pwm(1);
+\end{verbatim}
+This example turns on the output of the PWM 1.
 
 \subsubsection{\textcolor{red}{stdaq\_disable\_pwm}}
 
+The stdaq\_disable\_pwm() function disables the PWM output. \\
+The prototype for the function call is:
+\begin{verbatim}
+stdaq_disable_pwm(pwm)
+\end{verbatim}
+The entries to the functions are:
+\begin{itemize}
+\item [\textbf{[pwm (IN)]}] is the number [1-3] of the PWM required to be turned off. 
+\item [\textbf{[none (OUT)]}]
+\end{itemize}
+A function call example in Scilab:
+\begin{verbatim}
+--> stdaq_disable_pwm(1);
+\end{verbatim}
+This example turns off the output of the PWM 1.
+
 \subsubsection{\textcolor{red}{stdaq\_sync\_pwm}}
+
+\subsubsection{Examples}
+
+In the following example the PWM 1 will be activated starting with a 50 Hz frequency and a 20\% duty-cycle. After 100 msec. the duty-cycle is updated online to 50\%. Completed another time step of 100 msec. the output of the PWM 1 is turned off.
+%
+\begin{table}[ht!]
+\begin{tabular}{|l|l|}
+\hline
+\cellcolor[HTML]{C0C0C0} \textbf{Scilab} & 
+\begin{minipage}{4.5in}
+\begin{verbatim}
+
+stdaq_open("COM0");
+pwm = 1;
+duty = 20;          // 20% duty cycle
+rate = 50;          // 50 Hz
+stdaq_set_pwm(pwm,duty,rate);
+stdaq_enable_pwm(pwm);
+sleep(100);         // wait 100 msec.
+duty = 50;          // 50% duty cycle
+stdaq_set_pwm(pwm,duty);
+sleep(100);         // wait 100 msec.
+stdaq_disable_pwm(pwm);
+stdaq_close();
+    
+\end{verbatim}
+\end{minipage}
+\\ \hline
+\cellcolor[HTML]{C0C0C0} \textbf{Python} & 
+\begin{minipage}{4.5in}
+\begin{verbatim}
+
+import stdaq
+from time import sleep
+
+daq = stdaq.STDAQ('COM0') # open the communication
+pwm = 1, duty = 20, rate = 50
+daq.set_pwm(pwm,duty,rate) # set 50Hz @ 20% duty-cycle
+daq.enable_pwm(pwm) 
+sleep(0.1)
+duty = 50
+daq.set_pwm(pwm,duty)   # change to 50% duty-cycle
+sleep(0.1)
+daq.disable_pwm(pwm)
+del daq                 # close the communication
+    
+\end{verbatim}
+\end{minipage}
+\\ \hline
+\end{tabular}
+\end{table}
 
 \subsection{I2C}
 

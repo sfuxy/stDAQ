@@ -15,3 +15,4 @@ for i=1:(tapsperperiod*periods)
     out = [out, samples];
 end
 figure; plot(1:length(out),out);
+stdaq_close();
